@@ -1,5 +1,5 @@
 package TinyMake;
-$TinyMake::VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 NAME
 
@@ -36,10 +36,10 @@ TinyMake - A minimalist build language, similar in purpose to make and ant.
 use strict;
 require Exporter;
 our @ISA = ("Exporter");
-our @EXPORT_OK = qw(file synonym make tree group $target @changed %extra);
+our @EXPORT_OK = qw(file synonym make tree group $target @changed %extra sh);
 our %EXPORT_TAGS = (
 						  all => \@EXPORT_OK,
-						  simple => [qw(file synonym make)]
+						  simple => [qw(file synonym make sh)]
 						 );
 our @changed = ();
 our $target = undef;
@@ -47,6 +47,11 @@ our %extra = ();
 
 our @tasks = ();
 
+sub sh($) {
+  my ($cmd) = @_;
+  print "$cmd\n";
+  return qx($cmd);
+}
 sub file(&@) {
   my ($rule,$target,$sources,%extra) = @_;
   $sources = [$sources] if (ref $sources eq '');
@@ -65,13 +70,13 @@ sub synonym(@) {
 sub group(&@){
   my ($coderef, $synonym, $href,%extra) = @_;
   my @targets = keys %$href;
+  synonym($synonym, [@targets]);
   foreach my $target (@targets){
 	 my $source = $href->{$target};
 	 my $file = synonym($target,$source);
 	 $file->{rule} = $coderef;
 	 $file->{extra} = {%extra};
   }
-  synonym($synonym, [@targets]);
   return keys %$href;
 }
 
@@ -281,7 +286,7 @@ no square brackets are required. E.g. The example above can be rewritten as...
      d => '../classes',
      classpath => '../libs';
 
-To create Ant-style tasks simply don't bother updating or touching the target file. 
+To create Ant-style tasks, simply don't bother updating or touching the target file. 
 No file modification dates are checked so the task will be executed if it is in the dependency tree for the active target.
 The C<@changed> variable will contain all of the task's prerequisites, not just those that are newer than
 the target. The following sample code illustrates how to make breakfast using TinyMake ...
@@ -364,6 +369,13 @@ make returns a list of changed targets.
   tree @dirs
 
 This is a helper function which returns a list of all of the files in the specified directory and subdirectories.
+
+
+=item B<sh>
+
+  sh $command
+
+This is a helper function which executes the supplied string using qx() after printing the string to STDOUT. sh returns the value returned from qx()
 
 =item B<group>
 
@@ -485,6 +497,12 @@ The correct way to do it is like this...
 Please also refer to the java compilation example above.
 
 =head1 SEE ALSO
+
+http://www.xanadb.com/archive/perl/20050906
+
+http://www.xanadb.com/archive/perl/20050818
+
+http://www.xanadb.com/archive/perl/20050815
 
 http://martinfowler.com/articles/rake.html
 

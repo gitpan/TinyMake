@@ -1,7 +1,17 @@
-TinyMake version 0.02
+TinyMake version 0.03
 =====================
 
-This module provides a way of building software similar to make or rake.
+TinyMake is a yet another perl based make tool. TinyMake's syntax for declaring 
+targets, prerequisites and rules is relatively straightforward. A simple perl script using
+TinyMake would look like this...
+
+   use TinyMake
+   file { sh "cat @changed >> $target" } "master.log" => ["app.log","system.log","user.log"];
+   make "master.log"
+
+In the above example the master.log file will only be updated if any of app.log, system.log or 
+user.log are newer than master.log.
+
 
 INSTALLATION
 
@@ -20,7 +30,7 @@ This module requires these other modules and libraries:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2005 Walter Higgins (walterh@rocketmail.com)
+Copyright (C) 2005 Walter Higgins <watlerh@rocketmail.com>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 
