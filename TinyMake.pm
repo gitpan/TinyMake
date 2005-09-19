@@ -1,5 +1,5 @@
 package TinyMake;
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -49,13 +49,23 @@ require Exporter;
 our @ISA = ("Exporter");
 our @EXPORT_OK = qw(file make filetree group $target @changed @sources sh);
 our %EXPORT_TAGS = (all => \@EXPORT_OK,);
+#-------------------------------------------------------------------------------
+#
+# Exported variables (for use in rules)
+#
+#-------------------------------------------------------------------------------
 our @changed = ();
 our @sources = ();
 our $target = undef;
+
 my %ts = ();
 my %tr = ();
 my $first = undef;
-
+#-------------------------------------------------------------------------------
+#
+# Show Dependency tree: Prints out a nested list of target and dependencies
+#
+#-------------------------------------------------------------------------------
 sub show (@_){
   my ($node,$lvl) = @_;
   $node = $first unless (defined $node);
@@ -67,14 +77,24 @@ sub show (@_){
   }
   $lvl+=1;
   foreach (@{$ts{$node}}){
-	 showdeps ($_,$lvl);
+	 show ($_,$lvl);
   }
   $lvl-=1;
 }
+#-------------------------------------------------------------------------------
+#
+# Execute shell command: prints the shell command, the executes it
+#
+#-------------------------------------------------------------------------------
 sub sh (@){
   print "@_\n";
   return qx(@_);
 }
+#-------------------------------------------------------------------------------
+#
+# Add a new target : 
+#
+#-------------------------------------------------------------------------------
 sub file {
   my ($t,@rest) = @_;
   $first = $t unless defined $first;
@@ -88,11 +108,21 @@ sub file {
 	 }
   }
 }
+#-------------------------------------------------------------------------------
+#
+# Add a new group of targets
+#
+#-------------------------------------------------------------------------------
 sub group {
   my ($t,$href,$coderef) = @_;
   file $_ => $href->{$_}, $coderef foreach (keys %$href);
   file $t => [keys %$href];
 }
+#-------------------------------------------------------------------------------
+#
+# traverse the dependency tree post-orderly and return the list of targets
+#
+#-------------------------------------------------------------------------------
 sub depends {
   my ($t,$store,$visited) = @_;
   return if (grep { $_ eq $t} @$visited);
@@ -103,33 +133,41 @@ sub depends {
   push @$store, $t;
   @$store;
 }
-sub sh { 
-  print "@_\n"; 
-  qx(@_);
-}
-my %cachedsourcetimes = ();
-sub sourcetimes {
-#  map {$_ => -M $_} @_;
-  my %result = ();
-  foreach my $source (@_){
-	 my $value = undef;
-	 #
-	 # if the source is not itself a target then 
-	 # cache its modification time. THis assumes
-	 # that such sources will not be modified as a side effect
-	 # of any production rule during execution!!!!
-	 #
-	 if (exists $tr{$source}){
-		$value = -M $source;
-	 }else{
-		$cachedsourcetimes{$source} = -M $source unless exists $cachedsourcetimes{$source};
-		$value = $cachedsourcetimes{$source};
+
+#-------------------------------------------------------------------------------
+#
+# Return the lastmodified time for each source file
+#
+#-------------------------------------------------------------------------------
+{
+  my %cachedsourcetimes = ();
+  sub sourcetimes {
+	 #  map {$_ => -M $_} @_;
+	 my %result = ();
+	 foreach my $source (@_){
+		my $value = undef;
+		#
+		# if the source is not itself a target then 
+		# cache its modification time. THis assumes
+		# that such sources will not be modified as a side effect
+		# of any production rule during execution!!!!
+		#
+		if (exists $tr{$source}){
+		  $value = -M $source;
+		}else{
+		  $cachedsourcetimes{$source} = -M $source unless exists $cachedsourcetimes{$source};
+		  $value = $cachedsourcetimes{$source};
+		}
+		$result{$source} = $value;
 	 }
-	 $result{$source} = $value;
+	 %result;
   }
-  %result;
 }
-my $verbose = undef;
+#-------------------------------------------------------------------------------
+#
+# build a list of targets
+#
+#-------------------------------------------------------------------------------
 sub make {
   my @result = ();
   @_ = ($first) unless (@_);
@@ -156,6 +194,11 @@ sub make {
   @result;
 }
 
+#-------------------------------------------------------------------------------
+#
+# Get a recursive listing of files in a given directory
+#
+#-------------------------------------------------------------------------------
 sub filetree {
   my @found = ();
   File::Find::find sub{	 push @found, $File::Find::name }, @_;
